@@ -1,11 +1,11 @@
-import Code.Dataloader as dataloader
-import Code.Logger as logs
+import Code.Dataloader as DataloaderLib
+import Code.Logger as LogsLib
 
 import importlib
-importlib.reload(dataloader)
-importlib.reload(logs)
+importlib.reload(DataloaderLib)
+importlib.reload(LogsLib)
 
 
 last_ind = int(2e7 + 1e6)
-size = int(1e5)
-dataloader.GetTransactionsByInd(range(last_ind, last_ind - size, -1), logger_fake='logger_loader')
+size = int(1e7)
+DataloaderLib.GetTransactionsByInd(range(last_ind, last_ind - size, -1), logger_fake='logger_loader')
