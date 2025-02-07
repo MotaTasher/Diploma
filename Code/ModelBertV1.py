@@ -10,9 +10,9 @@ from tqdm.auto import tqdm
 from IPython.display import clear_output
 
 
-class BertForTransactionRegression(nn.Module):
+class BertForTransactionRegressionV1(nn.Module):
     def __init__(self, known_address_len, emb_size=64):
-        super(BertForTransactionRegression, self).__init__()
+        super(BertForTransactionRegressionV1, self).__init__()
 
         config = BertConfig()
         

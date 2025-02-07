@@ -7,6 +7,7 @@ import os
 import Code.Logger as LogsLib
 import torch.nn as nn
 from functools import partial
+import numba
 
 ETH_RPC_URL="https://mainnet.infura.io/v3/e0e69a0f0dae4450889fa8fa17117760"
 BLOCKS = "18M:+100"
@@ -15,6 +16,13 @@ ARGC = "echo $ETH_RPC_URL"
 wei_to_eth = 1e18
 
 
+@numba.njit
+def CalculateCoef(boom_times, sigma, coef, time):
+    total_coef = np.zeros_like(time)
+    for boom_time in boom_times:
+        total_coef += np.exp((-(time - boom_time) ** 2 / (2 * sigma))) * coef
+    return total_coef
+
 class TimeBoomStrategyV1():
     def __init__(self, boom_count, min_time, max_time, sigma=1, coef=1):
         self.boom_times = np.random.uniform(min_time, max_time, boom_count)
@@ -22,9 +30,11 @@ class TimeBoomStrategyV1():
         self.coef = coef
     
     def __call__(self, time):
+        # return CalculateCoef(self.boom_times, self.sigma, self.coef, time)
         total_coef = np.zeros_like(time)
         for boom_time in tqdm(self.boom_times, total=len(self.boom_times)):
-            total_coef += np.exp(-(time - boom_time) ** 2 / (2 * self.sigma)) * self.coef
+            # print(time.dtype)
+            total_coef += np.exp((-(time - boom_time) ** 2 / (2 * self.sigma))) * self.coef
         return total_coef
 
 
@@ -37,7 +47,7 @@ class AuthorStrategyV1():
 
     def __call__(self, indexes):
         result = self.generate_strategy(size=(len(indexes), self.dimension))
-        result[indexes < self.people_count] = self.people_emb[indexes[indexes < self.people_count]]
+        result[indexes < self.people_count] = np.take(self.people_emb, indexes[indexes < self.people_count], axis=0)
         return result
 
 
@@ -73,7 +83,11 @@ def DatasetTimeBoomAuthorDependence(cnt, logger_name='logs/raw_logger.log', logg
         df.loc[df.loc[:, 'to'] >= df.loc[:, 'from'], 'to'] += 1
         df.loc[:, 'timestamp'] = np.cumsum(time_strategy(**time_strategy_param, size=cnt))
         df.loc[:, 'value'] = np.sum(author_strategy(df.loc[:, 'from']) * author_strategy(df.loc[:, 'to']), axis=1)
-        df.loc[:, 'value'] *= boom_strategy(df.loc[:, 'timestamp'].values)
+        df.loc[:, 'from'] = df.loc[:, 'from'].astype(int)
+        df.loc[:, 'to'] = df.loc[:, 'to'].astype(int)
+        df.loc[:, 'value'] = df.loc[:, 'value'].astype(float)
+        df.loc[:, 'value'] *= boom_strategy(df.loc[:, 'timestamp'].values.astype(float))
+        df.loc[:, 'timestamp'] = df.loc[:, 'timestamp'].astype(float)
         return df
 
 

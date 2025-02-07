@@ -43,7 +43,7 @@ class TransactionDataset(Dataset):
             to_ind[to_address == addr] = ind
 
         numeric_features = [sample[:, self.IND_VALUE]]
-        numeric_features = torch.tensor(np.array(numeric_features), dtype=torch.float)
+        numeric_features = torch.tensor(np.array([x.astype(float) for x in numeric_features]), dtype=torch.float)
         return {
             'numeric_features': numeric_features.T,
             'from_address': torch.tensor(from_ind, dtype=torch.long).T,
