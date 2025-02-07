@@ -32,7 +32,7 @@ def time_cross_predictior(cls_result, result, from_emb, to_emb) -> torch.Tensor:
 
 
 def result_loss_slower_change(result, coef, **argkw):
-    return ((result[:, :-1, :] - result[:, 1:, :]) ** 2).mean() * coef * result.shape[0] * result.shape[1]
+    return ((result[:, :-1, :] - result[:, 1:, :]) ** 2).mean() * coef
 
 
 def result_loss_empty(result, **argkw):
