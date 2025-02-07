@@ -32,7 +32,7 @@ def time_cross_predictior(cls_result, result, from_emb, to_emb) -> torch.Tensor:
 
 
 def result_loss_slower_change(result, coef, **argkw):
-    return ((result[:, :-1, :] - result[:, 1:, :]) ** 2).sum() * coef
+    return ((result[:, :-1, :] - result[:, 1:, :]) ** 2).mean() * coef * result.shape[0] * result.shape[1]
 
 
 def result_loss_empty(result, **argkw):
@@ -70,10 +70,13 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
     criterion = nn.MSELoss()
     all_train_losses = []
     all_val_losses = []
+    all_train_loss_cross_time = []
+    all_val_loss_cross_time = []
     last_time = pd.Timestamp.now()
     for epoch in range(start_epoch, num_epochs):
 
         train_loss = 0
+        train_loss_cross_time = 0
         np.random.seed(None)
         for batch in tqdm(train_loader):
             optimizer.zero_grad()
@@ -112,7 +115,12 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
                 change_ind=change_ind,
                 criterion=criterion)
             train_loss += loss.cpu().detach().item()
-            train_loss += result_loss(result=result, coef=time_coef_loss).cpu().detach().item()
+
+            loss_cross_time = result_loss(result=result, coef=time_coef_loss)
+            loss += loss_cross_time
+
+            train_loss_cross_time += loss_cross_time.cpu().detach().item()
+
             loss.backward()
             optimizer.step()
         scheduler.step()
@@ -120,6 +128,7 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
         np.random.seed(42)
         with torch.no_grad():
             val_loss = 0
+            val_loss_cross_time = 0
             for batch in tqdm(val_loader):
                 batch_size, cnt_words = batch['to_address'].shape
 
@@ -148,17 +157,19 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
                     result=result,
                     from_emb=from_emb,
                     to_emb=to_emb)
-                loss = loss_fn(
+                val_loss += loss_fn(
                     pred=volumes_pred,
                     target=batch['value'].to(device),
                     msk_ind=msk_ind,
                     change_ind=change_ind,
-                    criterion=criterion,)
-                val_loss += loss.cpu().detach().item()
-                val_loss += result_loss(result=result, coef=time_coef_loss).cpu().detach().item()
+                    criterion=criterion,).cpu().detach().item()
+                val_loss_cross_time += result_loss(
+                    result=result, coef=time_coef_loss).cpu().detach().item()
 
         all_train_losses.append(train_loss / len(train_loader))
         all_val_losses.append(val_loss / len(val_loader))
+        all_train_loss_cross_time.append(train_loss_cross_time / len(train_loader))
+        all_val_loss_cross_time.append(val_loss_cross_time / len(val_loader))
 
         if pd.Timestamp.now() - last_time > pd.Timedelta(seconds=seconds_betwen_image_show):
             last_time = pd.Timestamp.now()
@@ -168,8 +179,10 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
             print(f'Test Loss: {val_loss / len(val_loader):.4f}')
             print(f'lr: {scheduler.get_last_lr()}')
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_train_losses, name='Train loss', mode='lines'))
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_val_losses, name='Validate loss', mode='lines'))
+            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_train_losses, name='Train loss pred', mode='lines'))
+            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_val_losses, name='Validate loss pred', mode='lines'))
+            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_train_loss_cross_time, name='Train loss time', mode='lines'))
+            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_val_loss_cross_time, name='Validate loss time', mode='lines'))
 
             fig.update_layout(
                 xaxis_title='epoch',
