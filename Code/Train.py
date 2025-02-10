@@ -23,16 +23,20 @@ def scalar_dot_predictor(cls_result, from_emb, to_emb, **argkw) -> torch.Tensor:
     return preds
 
 
-def time_cross_predictior(cls_result, result, from_emb, to_emb) -> torch.Tensor:
+def time_cross_predictior(cls_result, result, from_emb, to_emb, use_compositor=False, model=None) -> torch.Tensor:
     all_embs = torch.cat([from_emb, to_emb], dim=-1)
     # print(all_embs.shape, from_emb.shape, to_emb.shape, cls_result.shape, result.mT.shape)
-    preds = (all_embs * result).sum(axis=-1)
+    if use_compositor:
+        # print(model.compositor.shape, from_emb.shape, to_emb.shape, result.shape)
+        preds = result = torch.einsum("abc,sna,snb,snc->sn", model.compositor, from_emb, to_emb, result)
+    else:
+        preds = (all_embs * result).sum(axis=-1)
     # print(preds.shape)
     return preds
 
 
 def result_loss_slower_change(result, coef, **argkw):
-    return ((result[:, :-1, :] - result[:, 1:, :]) ** 2).mean() * coef
+    return ((result[:, :-1, :] - result[:, 1:, :]) ** 2).mean() * coef / (result.shape[1] - 1) * (result.shape[1])
 
 
 def result_loss_empty(result, **argkw):
@@ -96,7 +100,7 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
                 from_address=batch['from_address'].to(device),
                 to_address=batch['to_address'].to(device),
                 time_features=batch['time_features'].to(device),
-                msk_ind=msk_ind + 1
+                msk_ind=msk_ind + 1,
             )
             cls_result = res['cls_result']
             result = res['result']
@@ -107,7 +111,9 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
                 cls_result=cls_result,
                 result=result,
                 from_emb=from_emb,
-                to_emb=to_emb)
+                to_emb=to_emb,
+                use_compositor=model.use_compositor,
+                model=model,)
             loss = loss_fn(
                 pred=volumes_pred,
                 target=batch['value'].to(device),
@@ -156,7 +162,9 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
                     cls_result=cls_result,
                     result=result,
                     from_emb=from_emb,
-                    to_emb=to_emb)
+                    to_emb=to_emb,
+                    use_compositor=model.use_compositor,
+                    model=model,)
                 val_loss += loss_fn(
                     pred=volumes_pred,
                     target=batch['value'].to(device),
