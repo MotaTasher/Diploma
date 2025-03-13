@@ -29,7 +29,7 @@ class BertForTransactionRegressionV1(nn.Module):
 
         self.linear = nn.Linear(hidden_size, emb_size if self.use_compositor else emb_size * 2)
         if self.use_compositor:
-            self.compositor = nn.Parameter(torch.Tensor(emb_size, emb_size, emb_size))
+            self.compositor = nn.Parameter(torch.Tensor(emb_size + 1, emb_size + 1, emb_size + 1))
     
     def forward(self, numeric_features, from_address, to_address, time_features, msk_ind):
         from_emb = self.address_embedding(from_address)

@@ -5,11 +5,107 @@ import numpy as np
 from torch.optim.lr_scheduler import LambdaLR
 from tqdm.auto import tqdm
 from IPython.display import clear_output
+from plotly.subplots import make_subplots
 
 import matplotlib.pyplot as plt
 import plotly.express as px
 import plotly.graph_objects as go
 import pandas as pd
+
+
+lines_names = ['Train loss pred', 'Validate loss pred', 'Train loss time', 'Validate loss time']
+buttons_location = updatemenus=[
+    # Кнопки для первого подграфика
+    {
+        "type": "buttons",
+        "direction": "left",
+        "x": 1,  # Положение по горизонтали (0-1, где 1 — правый край)
+        "y": 1,   # Положение по вертикали (1 — верх графика, 1.1 — выше графика)
+        "xanchor": "left",
+        "yanchor": "bottom",
+        "font": {"size": 8},
+        "buttons": [
+            {
+                "method": "update",
+                "args": [{"visible": [True, True, False, False,
+                                      True, True, True, True]}],  # Показываем вторую кривую в первом подграфике
+                "label": f"Score losses"
+            },
+            {
+                "method": "update",
+                "args": [{"visible": [False, False, True, True,
+                                      True, True, True, True]}],  # Показываем вторую кривую в первом подграфике
+                "label": f"Time losses"
+            },
+            {
+                "method": "update",
+                "args": [{"visible": [True, True, True, True,
+                                      True, True, True, True]}],  # Показываем вторую кривую в первом подграфике
+                "label": f"Show all"
+            }
+        ]
+    },
+    # Кнопки для второго подграфика
+    {
+        "type": "buttons",
+        "direction": "left",
+        "x": 1,  # Положение по горизонтали
+        "y": 2/3,  # Положение по вертикали
+        "xanchor": "left",
+        "yanchor": "bottom",
+        "font": {"size": 8},
+        "buttons": [
+            {
+                "method": "update",
+                "args": [{"visible": [True, True, True, True,
+                                      True, False, True, True, ]}],  # Показываем только первые кривые
+                "label": f"{lines_names[0]}"
+            },
+            {
+                "method": "update",
+                "args": [{"visible": [True, True, True, True,
+                                      False, True, True, True, ]}],  # Показываем вторую кривую во втором подграфике
+                "label": f"{lines_names[1]}"
+            },
+            {
+                "method": "update",
+                "args": [{"visible": [True, True, True, True,
+                                      True, True, True, True]}],  # Показываем вторую кривую в первом подграфике
+                "label": f"Show all"
+            }
+        ]
+    },
+    # Кнопки для третьего подграфика
+    {
+        "type": "buttons",
+        "direction": "left",
+        "x": 1,  # Положение по горизонтали
+        "y": 1/3,  # Положение по вертикали
+        "xanchor": "left",
+        "yanchor": "bottom",
+        "font": {"size": 8},
+        "buttons": [
+            {
+                "method": "update",
+                "args": [{"visible": [True, True, True, True,
+                                     True, True, True, False]}],  # Показываем только первые кривые
+                "label": f"{lines_names[2]}"
+            },
+            {
+                "method": "update",
+                "args": [{"visible": [True, True, True, True,
+                                      True, True, False, True]}],  # Показываем вторую кривую в третьем подграфике
+                "label": f"{lines_names[3]}"
+            },
+            {
+                "method": "update",
+                "args": [{"visible": [True, True, True, True,
+                                      True, True, True, True]}],  # Показываем вторую кривую в первом подграфике
+                "label": f"Show all"
+            }
+        ]
+    }
+]
 
 def uniform_change_strategy(shape) -> torch.Tensor:
     return torch.rand(shape)
@@ -28,7 +124,13 @@ def time_cross_predictior(cls_result, result, from_emb, to_emb, use_compositor=F
     # print(all_embs.shape, from_emb.shape, to_emb.shape, cls_result.shape, result.mT.shape)
     if use_compositor:
         # print(model.compositor.shape, from_emb.shape, to_emb.shape, result.shape)
-        preds = result = torch.einsum("abc,sna,snb,snc->sn", model.compositor, from_emb, to_emb, result)
+        ones = torch.ones(*from_emb.shape[:2] , 1).to(from_emb.device)
+        preds = torch.einsum("abc,sna,snb,snc->sn",
+                             model.module.compositor if isinstance(model, nn.DataParallel) else model.compositor,
+                             torch.concat([from_emb, ones], dim=2),
+                             torch.concat([to_emb, ones], dim=2),
+                             torch.concat([result, ones], dim=2),
+                             )
     else:
         preds = (all_embs * result).sum(axis=-1)
     # print(preds.shape)
@@ -36,11 +138,11 @@ def time_cross_predictior(cls_result, result, from_emb, to_emb, use_compositor=F
 
 
 def result_loss_slower_change(result, coef, **argkw):
-    return ((result[:, :-1, :] - result[:, 1:, :]) ** 2).mean() * coef / (result.shape[1] - 1) * (result.shape[1])
+    return ((result[:, :-1, :] - result[:, 1:, :]) ** 2).mean() * coef
 
 
 def result_loss_empty(result, **argkw):
-    return torch.Tensor([0]).to(result.device)
+    return torch.Tensor([0]).to(result.device).mean()
 
 
 def criterion_loss_fn(pred, target, msk_ind, change_ind, criterion) -> torch.Tensor:
@@ -61,15 +163,48 @@ def scheduler_creator(optimizer, warmup_epochs, gamma, step_size):
     return LambdaLR(optimizer, lr_lambda=lr_lambda)
 
 
+def batch_to_model(batch, p_msk=0.15, p_change=0.15, device='cuda',
+                   change_strategy=uniform_change_strategy):
+    batch_size, cnt_words = batch['to_address'].shape
+
+    msk_or_change = np.random.choice(a=range(cnt_words), size=int(cnt_words * (p_change + p_msk)), replace=False)
+    msk_ind = np.random.choice(a=msk_or_change, size=int(cnt_words * p_msk))
+    change_ind = np.setdiff1d(msk_or_change, msk_ind)
+    cnt_change = len(change_ind)
+
+    volumes_features = batch['numeric_features']
+    volumes_features[:, change_ind] = torch.unsqueeze(change_strategy((batch_size, cnt_change)), 2)
+    
+    batch_size, cnt_words = batch['to_address'].shape
+    
+    return msk_ind, change_ind, dict(
+        numeric_features=volumes_features.to(device),
+        from_address=batch['from_address'].to(device),
+        to_address=batch['to_address'].to(device),
+        time_features=batch['time_features'].to(device),
+        msk_ind=msk_ind + 1,
+    )
+
+
 def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, learning_rate=1e-5, loss_fn=criterion_loss_fn,
                 p_change=0.15, p_msk=0.15, change_strategy=uniform_change_strategy, result_loss=result_loss_empty, device='cuda', start_epoch=0,
-                warmup_epochs=5, gamma=0.8, step_size=4, seconds_betwen_image_show=10, time_coef_loss=1/128):
+                warmup_epochs=5, gamma=0.8, step_size=4, seconds_betwen_image_show=10, time_coef_loss=1/128,  cnt_last_for_show=10):
+
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
-    scheduler = scheduler_creator(optimizer,
-                                 warmup_epochs=warmup_epochs,
-                                 gamma=gamma,
-                                 step_size=step_size)
+
+    # scheduler = scheduler_creator(optimizer,
+    #                              warmup_epochs=warmup_epochs,
+    #                              gamma=gamma,
+    #                              step_size=step_size)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
+                                                     mode='min',
+                                                     factor=gamma,
+                                                     patience=step_size,
+                                                     threshold=0.01,
+                                                     threshold_mode='abs',
+                                                     min_lr=1e-10,
+                                                     verbose=True)
     model.train()
     criterion = nn.MSELoss()
     all_train_losses = []
@@ -85,22 +220,10 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
         for batch in tqdm(train_loader):
             optimizer.zero_grad()
 
-            batch_size, cnt_words = batch['to_address'].shape
-
-            msk_or_change = np.random.choice(a=range(cnt_words), size=int(cnt_words * (p_change + p_msk)), replace=False)
-            msk_ind = np.random.choice(a=msk_or_change, size=int(cnt_words * p_msk))
-            change_ind = np.setdiff1d(msk_or_change, msk_ind)
-            cnt_change = len(change_ind)
-
-            volumes_features = batch['numeric_features']
-            volumes_features[:, change_ind] = torch.unsqueeze(change_strategy((batch_size, cnt_change)), 2)
-
+            msk_ind, change_ind, model_input = batch_to_model(
+                batch, p_msk, p_change, device, change_strategy)
             res = model(
-                numeric_features=volumes_features.to(device),
-                from_address=batch['from_address'].to(device),
-                to_address=batch['to_address'].to(device),
-                time_features=batch['time_features'].to(device),
-                msk_ind=msk_ind + 1,
+                **model_input
             )
             cls_result = res['cls_result']
             result = res['result']
@@ -112,46 +235,34 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
                 result=result,
                 from_emb=from_emb,
                 to_emb=to_emb,
-                use_compositor=model.use_compositor,
+                use_compositor=model.module.use_compositor if isinstance(model, nn.DataParallel) else model.use_compositor,
                 model=model,)
             loss = loss_fn(
                 pred=volumes_pred,
-                target=batch['value'].to(device),
+                target=batch['value'].to(volumes_pred.device),
                 msk_ind=msk_ind,
                 change_ind=change_ind,
                 criterion=criterion)
             train_loss += loss.cpu().detach().item()
 
-            loss_cross_time = result_loss(result=result, coef=time_coef_loss)
+            loss_cross_time = result_loss(result=result, coef=time_coef_loss).to(volumes_pred.device)
             loss += loss_cross_time
 
             train_loss_cross_time += loss_cross_time.cpu().detach().item()
 
             loss.backward()
             optimizer.step()
-        scheduler.step()
             
         np.random.seed(42)
         with torch.no_grad():
             val_loss = 0
             val_loss_cross_time = 0
             for batch in tqdm(val_loader):
-                batch_size, cnt_words = batch['to_address'].shape
 
-                msk_or_change = np.random.choice(a=range(cnt_words), size=int(cnt_words * (p_change + p_msk)), replace=False)
-                msk_ind = np.random.choice(a=msk_or_change, size=int(cnt_words * p_msk))
-                change_ind = np.setdiff1d(msk_or_change, msk_ind)
-                cnt_change = len(change_ind)
-
-                volumes_features = batch['numeric_features']
-                volumes_features[:, change_ind] = torch.unsqueeze(change_strategy((batch_size, cnt_change)), 2)
-
+                msk_ind, change_ind, model_input = batch_to_model(
+                    batch, p_msk, p_change, device, change_strategy)
                 res = model(
-                    numeric_features=volumes_features.to(device),
-                    from_address=batch['from_address'].to(device),
-                    to_address=batch['to_address'].to(device),
-                    time_features=batch['time_features'].to(device),
-                    msk_ind=msk_ind + 1
+                    **model_input
                 )
                 cls_result = res['cls_result']
                 result = res['result']
@@ -163,11 +274,11 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
                     result=result,
                     from_emb=from_emb,
                     to_emb=to_emb,
-                    use_compositor=model.use_compositor,
+                     use_compositor=model.module.use_compositor if isinstance(model, nn.DataParallel) else model.use_compositor,
                     model=model,)
                 val_loss += loss_fn(
                     pred=volumes_pred,
-                    target=batch['value'].to(device),
+                    target=batch['value'].to(volumes_pred.device),
                     msk_ind=msk_ind,
                     change_ind=change_ind,
                     criterion=criterion,).cpu().detach().item()
@@ -178,6 +289,7 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
         all_val_losses.append(val_loss / len(val_loader))
         all_train_loss_cross_time.append(train_loss_cross_time / len(train_loader))
         all_val_loss_cross_time.append(val_loss_cross_time / len(val_loader))
+        scheduler.step(val_loss + val_loss_cross_time)
 
         if pd.Timestamp.now() - last_time > pd.Timedelta(seconds=seconds_betwen_image_show):
             last_time = pd.Timestamp.now()
@@ -186,15 +298,116 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
             print(f'Train Loss: {train_loss / len(train_loader):.4f}')
             print(f'Test Loss: {val_loss / len(val_loader):.4f}')
             print(f'lr: {scheduler.get_last_lr()}')
-            fig = go.Figure()
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_train_losses, name='Train loss pred', mode='lines'))
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_val_losses, name='Validate loss pred', mode='lines'))
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_train_loss_cross_time, name='Train loss time', mode='lines'))
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_val_loss_cross_time, name='Validate loss time', mode='lines'))
+
+            fig = make_subplots(rows=5, cols=1, subplot_titles=(
+                "Все результаты",
+                f"Последние {cnt_last_for_show} train loss",
+                f"Последние {cnt_last_for_show} time loss",
+                f"Gramm matrix of known adress embedings",
+                f'Predicts vs target (val)'))
+
+            fig.add_trace(
+                go.Scatter(x=np.arange(epoch + 1), y=all_train_losses,
+                           name=lines_names[0], mode='lines'),
+                row=1, col=1,
+            )
+            fig.add_trace(
+                go.Scatter(x=np.arange(epoch + 1), y=all_val_losses,
+                           name=lines_names[1], mode='lines'),
+                row=1, col=1
+            )
+            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_train_loss_cross_time,
+                                     name=lines_names[2], mode='lines'),
+                row=1, col=1
+            )
+            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_val_loss_cross_time,
+                                     name=lines_names[3], mode='lines'),
+                row=1, col=1
+            )
+            
+            fig.add_trace(
+                go.Scatter(x=np.arange(epoch + 1), y=all_train_losses[-cnt_last_for_show:],
+                           name=lines_names[0], mode='lines'),
+                row=2, col=1,
+            )
+            fig.add_trace(
+                go.Scatter(x=np.arange(epoch + 1), y=all_val_losses[-cnt_last_for_show:],
+                           name=lines_names[1], mode='lines'),
+                row=2, col=1
+            )
 
             fig.update_layout(
                 xaxis_title='epoch',
-                yaxis_title='loss'
+                yaxis_title='loss',
+                width=1000,  height=1500,
+                # updatemenus=buttons_location
+                 
             )
+            
+            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_train_loss_cross_time[-cnt_last_for_show:],
+                                     name=lines_names[2], mode='lines'),
+                row=3, col=1
+            )
+            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_val_loss_cross_time[-cnt_last_for_show:],
+                                     name=lines_names[3], mode='lines'),
+                row=3, col=1
+            )
+            
+            adress_emb = model.address_embedding._parameters['weight'].detach().cpu()
+            # fig.add_trace(go.Heatmap(z=adress_emb @ adress_emb.T),
+            #               row=4, col=1)
+            fig.add_trace(
+                go.Heatmap(
+                    z=adress_emb @ adress_emb.T,
+                    colorbar=dict(
+                        len=0.2,
+                        y=0.3,
+                        yanchor='middle',
+                        x=1.05
+                    )
+                ),
+                row=4, col=1
+            )
+            with torch.no_grad():
+                it = iter(train_loader)
+                next(it)
+                next(it)
+                next(it)
+                show_batch = next(it)
+                
+                msk_ind, change_ind, model_input = batch_to_model(
+                    show_batch, p_msk, p_change, device, change_strategy)
+                res = model(
+                    **model_input
+                )
+                cls_result = res['cls_result']
+                result = res['result']
+                from_emb = res['from_emb']
+                to_emb = res['to_emb']
 
+                volumes_pred = model_predictor(
+                    cls_result=cls_result,
+                    result=result,
+                    from_emb=from_emb,
+                    to_emb=to_emb,
+                    use_compositor=model.module.use_compositor if isinstance(model, nn.DataParallel) else model.use_compositor,
+                    model=model,)
+                
+                fig.add_trace(go.Scatter(
+                    x=show_batch['time_features'][0, :, -1].detach().cpu(),
+                    y=show_batch['numeric_features'][0, :, -1].detach().cpu(),
+                    line_shape='hv',
+                    name='Targets'),
+                              row=5,
+                              col=1,
+                )
+                fig.add_trace(go.Scatter(
+                    x=show_batch['time_features'][0, :, -1].detach().cpu(),
+                    y=volumes_pred[0, :].detach().cpu(),
+                    line_shape='hv',
+                    name='predicts'),
+                              row=5,
+                              col=1,
+                )
+                # return show_batch, volumes_pred
             fig.show()
