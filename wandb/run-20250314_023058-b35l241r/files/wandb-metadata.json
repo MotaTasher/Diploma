@@ -1,0 +1,16 @@
+{
+  "os": "Linux-6.1.0-30-amd64-x86_64-with-glibc2.36",
+  "python": "CPython 3.12.8",
+  "startedAt": "2025-03-13T23:30:58.877799Z",
+  "program": "/home/motatasher/Documents/University/Diploma/Diploma/predict_count.ipynb",
+  "codePath": "predict_count.ipynb",
+  "git": {
+    "remote": "git@github.com:MotaTasher/Diploma.git",
+    "commit": "dc639c575a906e55236494577e59fcce8c784561"
+  },
+  "email": "mot12131415@gmail.com",
+  "root": "/home/motatasher/Documents/University/Diploma/Diploma",
+  "host": "butch",
+  "executable": "/home/motatasher/miniconda3/envs/DiplomaIsupov/bin/python",
+  "codePathLocal": "predict_count.ipynb"
+}

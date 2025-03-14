@@ -1,0 +1,78 @@
+{
+  "os": "Linux-6.1.0-30-amd64-x86_64-with-glibc2.36",
+  "python": "CPython 3.12.8",
+  "startedAt": "2025-03-13T23:53:10.916452Z",
+  "program": "/home/motatasher/Documents/University/Diploma/Diploma/predict_count.ipynb",
+  "codePath": "predict_count.ipynb",
+  "git": {
+    "remote": "git@github.com:MotaTasher/Diploma.git",
+    "commit": "dc639c575a906e55236494577e59fcce8c784561"
+  },
+  "email": "mot12131415@gmail.com",
+  "root": "/home/motatasher/Documents/University/Diploma/Diploma",
+  "host": "butch",
+  "executable": "/home/motatasher/miniconda3/envs/DiplomaIsupov/bin/python",
+  "codePathLocal": "predict_count.ipynb",
+  "cpu_count": 128,
+  "cpu_count_logical": 256,
+  "gpu": "NVIDIA A100-PCIE-40GB",
+  "gpu_count": 7,
+  "disk": {
+    "/": {
+      "total": "343360233472",
+      "used": "29024653312"
+    }
+  },
+  "memory": {
+    "total": "1081991651328"
+  },
+  "cpu": {
+    "count": 128,
+    "countLogical": 256
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere"
+    },
+    {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere"
+    },
+    {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere"
+    },
+    {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere"
+    },
+    {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere"
+    },
+    {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere"
+    },
+    {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere"
+    }
+  ],
+  "cudaVersion": "12.7"
+}

@@ -186,9 +186,10 @@ def batch_to_model(batch, p_msk=0.15, p_change=0.15, device='cuda',
     )
 
 
-def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, learning_rate=1e-5, loss_fn=criterion_loss_fn,
+def train_model(model, model_predictor, train_loader, val_loader, run, num_epochs=5, learning_rate=1e-5, loss_fn=criterion_loss_fn,
                 p_change=0.15, p_msk=0.15, change_strategy=uniform_change_strategy, result_loss=result_loss_empty, device='cuda', start_epoch=0,
-                warmup_epochs=5, gamma=0.8, step_size=4, seconds_betwen_image_show=10, time_coef_loss=1/128,  cnt_last_for_show=10):
+                warmup_epochs=5, gamma=0.8, step_size=4, seconds_betwen_image_show=10, time_coef_loss=1/128,  cnt_last_for_show=10,
+                loggin_each=5):
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
@@ -291,50 +292,62 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
         all_val_loss_cross_time.append(val_loss_cross_time / len(val_loader))
         scheduler.step(val_loss + val_loss_cross_time)
 
-        if pd.Timestamp.now() - last_time > pd.Timedelta(seconds=seconds_betwen_image_show):
-            last_time = pd.Timestamp.now()
-            clear_output()
-            print(f'Epoch [{epoch+1}/{num_epochs}]')
-            print(f'Train Loss: {train_loss / len(train_loader):.4f}')
-            print(f'Test Loss: {val_loss / len(val_loader):.4f}')
-            print(f'lr: {scheduler.get_last_lr()}')
-
-            fig = make_subplots(rows=5, cols=1, subplot_titles=(
+        if pd.Timestamp.now() - last_time > pd.Timedelta(seconds=seconds_betwen_image_show) or epoch % loggin_each == 0:
+            need_draw=False
+            if pd.Timestamp.now() - last_time > pd.Timedelta(seconds=seconds_betwen_image_show):
+                last_time = pd.Timestamp.now()
+                need_draw=True
+            graphs_names = [
                 "Все результаты",
                 f"Последние {cnt_last_for_show} train loss",
                 f"Последние {cnt_last_for_show} time loss",
                 f"Gramm matrix of known adress embedings",
-                f'Predicts vs target (val)'))
+                f'Predicts vs target (val)',
+            ]
+            figs = {
+                graphs_names[0]: go.Figure(),
+                graphs_names[1]: go.Figure(),
+                graphs_names[2]: go.Figure(),
+                graphs_names[3]: go.Figure(),
+                graphs_names[4]: go.Figure()
+            }
+            clear_output()
+            print(f'Epoch [{epoch+1}/{num_epochs}]')
+            print(f'Train Loss: {train_loss / len(train_loader):.4f}')
+            print(f'Validation Loss: {val_loss / len(val_loader):.4f}')
+            print(f'lr: {scheduler.get_last_lr()}')
+            run.log(
+                dict(epoch=epoch+1,
+                     train_loss=train_loss / len(train_loader),
+                     val_loss=val_loss / len(val_loader),
+                     lr=scheduler.get_last_lr()))
 
-            fig.add_trace(
+            fig = make_subplots(rows=5, cols=1, subplot_titles=graphs_names)
+
+            for trace in [
                 go.Scatter(x=np.arange(epoch + 1), y=all_train_losses,
                            name=lines_names[0], mode='lines'),
-                row=1, col=1,
-            )
-            fig.add_trace(
                 go.Scatter(x=np.arange(epoch + 1), y=all_val_losses,
                            name=lines_names[1], mode='lines'),
-                row=1, col=1
-            )
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_train_loss_cross_time,
-                                     name=lines_names[2], mode='lines'),
-                row=1, col=1
-            )
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_val_loss_cross_time,
-                                     name=lines_names[3], mode='lines'),
-                row=1, col=1
-            )
-            
-            fig.add_trace(
+                go.Scatter(x=np.arange(epoch + 1), y=all_train_loss_cross_time,
+                           name=lines_names[2], mode='lines'),
+                go.Scatter(x=np.arange(epoch + 1), y=all_val_loss_cross_time,
+                           name=lines_names[3], mode='lines'),
+            ]:
+                fig.add_trace(
+                    trace,
+                    row=1, col=1,
+                )
+                figs[graphs_names[0]].add_trace(trace)
+                
+            for trace in [
                 go.Scatter(x=np.arange(epoch + 1), y=all_train_losses[-cnt_last_for_show:],
-                           name=lines_names[0], mode='lines'),
-                row=2, col=1,
-            )
-            fig.add_trace(
+                               name=lines_names[0], mode='lines'),
                 go.Scatter(x=np.arange(epoch + 1), y=all_val_losses[-cnt_last_for_show:],
-                           name=lines_names[1], mode='lines'),
-                row=2, col=1
-            )
+                               name=lines_names[1], mode='lines')
+            ]:
+                fig.add_trace(trace, row=2, col=1)
+                figs[graphs_names[1]].add_trace(trace)
 
             fig.update_layout(
                 xaxis_title='epoch',
@@ -343,31 +356,22 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
                 # updatemenus=buttons_location
                  
             )
-            
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_train_loss_cross_time[-cnt_last_for_show:],
-                                     name=lines_names[2], mode='lines'),
-                row=3, col=1
-            )
-            fig.add_trace(go.Scatter(x=np.arange(epoch + 1), y=all_val_loss_cross_time[-cnt_last_for_show:],
-                                     name=lines_names[3], mode='lines'),
-                row=3, col=1
-            )
-            
+            for trace in [
+                go.Scatter(x=np.arange(epoch + 1), y=all_train_loss_cross_time[-cnt_last_for_show:],
+                               name=lines_names[2], mode='lines'),
+                go.Scatter(x=np.arange(epoch + 1), y=all_val_loss_cross_time[-cnt_last_for_show:],
+                                     name=lines_names[3], mode='lines')
+            ]:
+                fig.add_trace(trace, row=3, col=1)
+                figs[graphs_names[2]].add_trace(trace)
+
+
             adress_emb = model.address_embedding._parameters['weight'].detach().cpu()
-            # fig.add_trace(go.Heatmap(z=adress_emb @ adress_emb.T),
-            #               row=4, col=1)
-            fig.add_trace(
-                go.Heatmap(
-                    z=adress_emb @ adress_emb.T,
-                    colorbar=dict(
-                        len=0.2,
-                        y=0.3,
-                        yanchor='middle',
-                        x=1.05
-                    )
-                ),
-                row=4, col=1
-            )
+            trace = go.Heatmap(z=adress_emb @ adress_emb.T,
+                               colorbar=dict(len=0.2, y=0.3, yanchor='middle', x=1.05))
+            fig.add_trace(trace, row=4, col=1)
+            figs[graphs_names[3]].add_trace(go.Heatmap(z=adress_emb @ adress_emb.T,))
+            
             with torch.no_grad():
                 it = iter(train_loader)
                 next(it)
@@ -393,21 +397,22 @@ def train_model(model, model_predictor, train_loader, val_loader, num_epochs=5, 
                     use_compositor=model.module.use_compositor if isinstance(model, nn.DataParallel) else model.use_compositor,
                     model=model,)
                 
-                fig.add_trace(go.Scatter(
-                    x=show_batch['time_features'][0, :, -1].detach().cpu(),
-                    y=show_batch['numeric_features'][0, :, -1].detach().cpu(),
-                    line_shape='hv',
-                    name='Targets'),
-                              row=5,
-                              col=1,
-                )
-                fig.add_trace(go.Scatter(
-                    x=show_batch['time_features'][0, :, -1].detach().cpu(),
-                    y=volumes_pred[0, :].detach().cpu(),
-                    line_shape='hv',
-                    name='predicts'),
-                              row=5,
-                              col=1,
-                )
-                # return show_batch, volumes_pred
-            fig.show()
+                for trace in [
+                    go.Scatter(
+                        x=show_batch['time_features'][0, :, -1].detach().cpu(),
+                        y=show_batch['numeric_features'][0, :, -1].detach().cpu(),
+                        line_shape='hv',
+                        name='Targets'),
+                    go.Scatter(
+                        x=show_batch['time_features'][0, :, -1].detach().cpu(),
+                        y=volumes_pred[0, :].detach().cpu(),
+                        line_shape='hv',
+                        name='predicts')
+                ]:
+                    fig.add_trace(trace, row=5, col=1,)
+                    figs[graphs_names[4]].add_trace(trace)
+                
+            if epoch % loggin_each == 0:
+                run.log(figs)
+            if need_draw:
+                fig.show()

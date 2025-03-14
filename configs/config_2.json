@@ -1,0 +1,13 @@
+{
+    "dataset_fabric": "SimpleDataloader",
+    "model_params": {
+        "emb_size": 4,
+        "use_compositor": true
+    },
+    "df_config": {
+        "cnt": 50000,
+        "count_people": 5
+    },
+    "num_epochs": 200,
+    "name": "SimpleDataloader with use_compositor"
+}

@@ -1,0 +1,11 @@
+{
+    "dataset_fabric": "SimpleDataloader",
+    "model_params": {
+        "emb_size": 4,
+    },
+    "df_config": {
+        "cnt": 50000,
+        "count_people": 5
+    },
+    "num_epochs": 200
+}

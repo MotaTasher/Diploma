@@ -31,11 +31,14 @@ class TimeBoomStrategyV1():
     
     def __call__(self, time):
         # return CalculateCoef(self.boom_times, self.sigma, self.coef, time)
-        total_coef = np.zeros_like(time)
-        for boom_time in tqdm(self.boom_times, total=len(self.boom_times)):
-            # print(time.dtype)
-            total_coef += np.exp((-(time - boom_time) ** 2 / (2 * self.sigma))) * self.coef
-        return total_coef
+        if len(self.boom_times) == 0:
+            return np.ones_like(time)
+        else:
+            total_coef = np.zeros_like(time)
+            for boom_time in tqdm(self.boom_times, total=len(self.boom_times)):
+                # print(time.dtype)
+                total_coef += np.exp((-(time - boom_time) ** 2 / (2 * self.sigma))) * self.coef
+            return total_coef
 
 
 class AuthorStrategyV1():
