@@ -1,0 +1,18 @@
+defaults:
+    - default
+    - _self_
+
+dataset_fabric: "DatasetTimeBoomAuthorDependence"
+model_params:
+    emb_size: 4
+    use_compositor: true
+
+df_config:
+    cnt: 50_000
+    count_people: 20
+    cnt_boom: 0
+    sigma: 10000
+
+num_epochs: 200
+seconds_betwen_image_show: 100
+name: "DatasetTimeBoomAuthorDependence without booms"

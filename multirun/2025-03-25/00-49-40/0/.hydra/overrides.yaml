@@ -1,0 +1,4 @@
+- +cuda_id=5
+- df_config.count_people=5
+- df_config.cnt=500000
+- model_params.emb_size=4

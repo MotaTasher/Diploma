@@ -1,0 +1,17 @@
+defaults:
+    - default
+    - _self_
+
+dataset_fabric: "SimpleDataloader"
+model_params:
+    emb_size: 4
+
+
+df_config:
+    cnt: 50_000
+    count_people: 5
+
+
+
+num_epochs: 200
+name: "SimpleDataloader with use_compositor"

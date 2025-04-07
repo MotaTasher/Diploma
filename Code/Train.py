@@ -183,21 +183,17 @@ def batch_to_model(batch, p_msk=0.15, p_change=0.15, device='cuda',
         to_address=batch['to_address'].to(device),
         time_features=batch['time_features'].to(device),
         msk_ind=msk_ind + 1,
+        volumes=volumes_features.to(device)
     )
 
 
 def train_model(model, model_predictor, train_loader, val_loader, run, num_epochs=5, learning_rate=1e-5, loss_fn=criterion_loss_fn,
                 p_change=0.15, p_msk=0.15, change_strategy=uniform_change_strategy, result_loss=result_loss_empty, device='cuda', start_epoch=0,
                 warmup_epochs=5, gamma=0.8, step_size=4, seconds_betwen_image_show=10, time_coef_loss=1/128,  cnt_last_for_show=10,
-                loggin_each=5):
+                loggin_each=5, show_img=False, show_batch_size=1):
 
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
-    # scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=5, gamma=0.1)
 
-    # scheduler = scheduler_creator(optimizer,
-    #                              warmup_epochs=warmup_epochs,
-    #                              gamma=gamma,
-    #                              step_size=step_size)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, 
                                                      mode='min',
                                                      factor=gamma,
@@ -291,6 +287,14 @@ def train_model(model, model_predictor, train_loader, val_loader, run, num_epoch
         all_train_loss_cross_time.append(train_loss_cross_time / len(train_loader))
         all_val_loss_cross_time.append(val_loss_cross_time / len(val_loader))
         scheduler.step(val_loss + val_loss_cross_time)
+        
+        run.log(dict(
+            train_loss=train_loss / len(train_loader),
+            val_loss=val_loss / len(val_loader),
+            train_loss_cross_time = train_loss_cross_time / len(train_loader),
+            val_loss_cross_time = val_loss_cross_time / len(val_loader),
+            
+        ))
 
         if pd.Timestamp.now() - last_time > pd.Timedelta(seconds=seconds_betwen_image_show) or epoch % loggin_each == 0:
             need_draw=False
@@ -309,7 +313,7 @@ def train_model(model, model_predictor, train_loader, val_loader, run, num_epoch
                 graphs_names[1]: go.Figure(),
                 graphs_names[2]: go.Figure(),
                 graphs_names[3]: go.Figure(),
-                graphs_names[4]: go.Figure()
+                graphs_names[4]: go.Figure(),
             }
             clear_output()
             print(f'Epoch [{epoch+1}/{num_epochs}]')
@@ -373,11 +377,16 @@ def train_model(model, model_predictor, train_loader, val_loader, run, num_epoch
             figs[graphs_names[3]].add_trace(go.Heatmap(z=adress_emb @ adress_emb.T,))
             
             with torch.no_grad():
+                raw_show_batch = []
                 it = iter(train_loader)
-                next(it)
-                next(it)
-                next(it)
-                show_batch = next(it)
+                raw_show_batch.append(next(it))
+                for _ in range(show_batch_size // raw_show_batch[0]['time_features'].numel()):
+                    raw_show_batch.append(next(it))
+                keys = raw_show_batch[0].keys()
+                
+                show_batch = dict()
+                for key in keys:
+                    show_batch[key] = torch.concat([raw[key] for raw in raw_show_batch])
                 
                 msk_ind, change_ind, model_input = batch_to_model(
                     show_batch, p_msk, p_change, device, change_strategy)
@@ -397,15 +406,23 @@ def train_model(model, model_predictor, train_loader, val_loader, run, num_epoch
                     use_compositor=model.module.use_compositor if isinstance(model, nn.DataParallel) else model.use_compositor,
                     model=model,)
                 
+                indexes = show_batch['time_features'][..., -1].detach().cpu().reshape(-1)
+                # print(indexes.shape)
+                indexes_sorted = sorted(np.arange(len(indexes)), key=lambda x: indexes[x,])
+                indexes_sorted = indexes_sorted[:show_batch_size]
+
+                targets = show_batch['numeric_features'][..., -1].detach().cpu().reshape(-1)
+                preds = volumes_pred.reshape(-1).detach().cpu()
+
                 for trace in [
                     go.Scatter(
-                        x=show_batch['time_features'][0, :, -1].detach().cpu(),
-                        y=show_batch['numeric_features'][0, :, -1].detach().cpu(),
+                        x=np.arange(len(indexes_sorted)),
+                        y=targets[indexes_sorted],
                         line_shape='hv',
                         name='Targets'),
                     go.Scatter(
-                        x=show_batch['time_features'][0, :, -1].detach().cpu(),
-                        y=volumes_pred[0, :].detach().cpu(),
+                        x=np.arange(len(indexes_sorted)),
+                        y=preds[indexes_sorted],
                         line_shape='hv',
                         name='predicts')
                 ]:
@@ -414,5 +431,5 @@ def train_model(model, model_predictor, train_loader, val_loader, run, num_epoch
                 
             if epoch % loggin_each == 0:
                 run.log(figs)
-            if need_draw:
+            if need_draw and show_img:
                 fig.show()

@@ -1,0 +1,20 @@
+name: model training
+df_config: {}
+dataset_fabric: DatasetTimeBoomAuthorDependence
+cnt_known_address: 100
+train_batch_size: 64
+test_batch_size: 64
+sample_len: 100
+model: BertForTransactionRegressionV1
+model_params:
+  hidden_size: 768
+  num_hidden_layers: 12
+num_epochs: 30
+learning_rate: 0.0003
+gamma: 0.8
+step_size: 10
+time_coef_loss: 1
+cnt_last_for_show: 50
+seconds_betwen_image_show: 10
+model_predictor: time_cross_predictior
+result_loss: result_loss_slower_change

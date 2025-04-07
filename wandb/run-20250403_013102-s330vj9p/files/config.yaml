@@ -1,0 +1,86 @@
+_wandb:
+    value:
+        cli_version: 0.19.8
+        m: []
+        python_version: 3.12.8
+        t:
+            "1":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 50
+                - 53
+                - 55
+                - 105
+            "2":
+                - 1
+                - 5
+                - 11
+                - 49
+                - 50
+                - 53
+                - 55
+                - 105
+            "3":
+                - 2
+                - 13
+                - 16
+                - 23
+                - 55
+            "4": 3.12.8
+            "5": 0.19.8
+            "6": 4.48.2
+            "8":
+                - 5
+            "12": 0.19.8
+            "13": linux-x86_64
+cnt_known_address:
+    value: 100
+cnt_last_for_show:
+    value: 50
+cuda_id:
+    value: 2
+dataset_fabric:
+    value: DatasetTimeBoomAuthorDependence
+df_config:
+    value:
+        cnt: 50000
+        cnt_boom: 0
+        count_people: 20
+        sigma: 10000
+gamma:
+    value: 0.8
+learning_rate:
+    value: 0.01
+model:
+    value: BertForTransactionRegressionV1
+model_params:
+    value:
+        emb_size: 28
+        num_attention_heads: 12
+        use_compositor: true
+model_predictor:
+    value: time_cross_predictior
+name:
+    value: DatasetTimeBoomAuthorDependence without booms
+num_epochs:
+    value: 200
+result_loss:
+    value: result_loss_slower_change
+sample_len:
+    value: 100
+seconds_betwen_image_show:
+    value: 100
+show_batch_size:
+    value: 200
+show_img:
+    value: false
+step_size:
+    value: 10
+test_batch_size:
+    value: 64
+time_coef_loss:
+    value: 1
+train_batch_size:
+    value: 64

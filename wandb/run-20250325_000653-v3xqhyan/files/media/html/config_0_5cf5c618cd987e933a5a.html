@@ -1,0 +1,26 @@
+<base target="_blank"><link rel="stylesheet" type="text/css" href="https://app.wandb.ai/normalize.css" /><pre>name: model training
+df_config:
+  cnt: 50000
+dataset_fabric: DatasetTimeBoomAuthorDependence
+train_batch_size: 64
+test_batch_size: 64
+sample_len: 100
+cnt_known_address: 100
+model: BertForTransactionRegressionV1
+model_params:
+  emb_size: 4
+  num_attention_heads: 12
+  use_compositor: false
+num_epochs: 100
+learning_rate: 0.0003
+gamma: 0.8
+step_size: 10
+time_coef_loss: 1
+cnt_last_for_show: 50
+seconds_betwen_image_show: 10
+model_predictor: time_cross_predictior
+result_loss: result_loss_slower_change
+show_img: false
+cuda_id: 6
+config: config_1
+</pre>

@@ -7,9 +7,7 @@ from transformers import BertConfig, BertModel
 import numpy as np
 
 def extract_time_features(timestamps):
-    cos_func = np.cos(timestamps)
-    sin_func = np.sin(timestamps)
-    return np.array([cos_func, sin_func, timestamps])
+    return np.array([timestamps])
 
 class TransactionDataset(Dataset):
     def __init__(self, data, known_address, sample_len):
