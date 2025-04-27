@@ -1,0 +1,3 @@
+- +cuda_id=2
+- ++model_params.emb_size=16
+- ++model_params.time_features=7

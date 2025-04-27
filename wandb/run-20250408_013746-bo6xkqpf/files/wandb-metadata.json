@@ -1,0 +1,21 @@
+{
+  "os": "Linux-6.1.0-30-amd64-x86_64-with-glibc2.36",
+  "python": "CPython 3.12.8",
+  "startedAt": "2025-04-07T22:37:46.198067Z",
+  "args": [
+    "--config-name",
+    "config_timeboom_3d_tensor_1000_booms",
+    "+cuda_id=0"
+  ],
+  "program": "/home/motatasher/Documents/University/Diploma/Diploma/runner.py",
+  "codePath": "runner.py",
+  "git": {
+    "remote": "git@github.com:MotaTasher/Diploma.git",
+    "commit": "19f4dfce9e08120e7f7bc2c79c32d49d2a231823"
+  },
+  "email": "mot12131415@gmail.com",
+  "root": "/home/motatasher/Documents/University/Diploma/Diploma",
+  "host": "butch",
+  "executable": "/home/motatasher/miniconda3/envs/DiplomaIsupov/bin/python3",
+  "codePathLocal": "runner.py"
+}

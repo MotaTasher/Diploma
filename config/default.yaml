@@ -33,4 +33,14 @@ model_predictor: "time_cross_predictior"
 result_loss: "result_loss_slower_change"
 show_img: False
 
-show_batch_size: 1
+show_batch_size: 300
+
+warmup_epochs: 5
+p_change: 0.15
+p_msk: 0.15
+p_save: 0.15
+loggin_each: 5
+change_strategy: uniform
+loss_fn: criterion
+
+start_epoch: 0

@@ -6,6 +6,7 @@ dataset_fabric: "DatasetTimeBoomAuthorDependence"
 model_params:
     emb_size: 4
     use_compositor: true
+    time_features: 1
 
 df_config:
     cnt: 500_000

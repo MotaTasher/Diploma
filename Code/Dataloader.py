@@ -8,6 +8,9 @@ import Code.Logger as LogsLib
 import torch.nn as nn
 from functools import partial
 import numba
+import torch
+import torch.nn.functional as F
+
 
 ETH_RPC_URL="https://mainnet.infura.io/v3/e0e69a0f0dae4450889fa8fa17117760"
 BLOCKS = "18M:+100"
@@ -24,21 +27,29 @@ def CalculateCoef(boom_times, sigma, coef, time):
     return total_coef
 
 class TimeBoomStrategyV1():
-    def __init__(self, boom_count, min_time, max_time, sigma=1, coef=1):
-        self.boom_times = np.random.uniform(min_time, max_time, boom_count)
+    def __init__(self, boom_count, min_time, max_time, sigma=1,
+                 coef=1, batch_size=100, device='cuda'):
+        self.device = device
+        self.boom_times = torch.tensor(np.random.uniform(min_time, max_time, boom_count)).to(self.device)
         self.sigma = sigma
         self.coef = coef
-    
+        self.batch_size = batch_size
+
     def __call__(self, time):
-        # return CalculateCoef(self.boom_times, self.sigma, self.coef, time)
         if len(self.boom_times) == 0:
             return np.ones_like(time)
         else:
-            total_coef = np.zeros_like(time)
-            for boom_time in tqdm(self.boom_times, total=len(self.boom_times)):
-                # print(time.dtype)
-                total_coef += np.exp((-(time - boom_time) ** 2 / (2 * self.sigma))) * self.coef
-            return total_coef
+            total_coef = torch.zeros(time.shape).to(self.device)
+            # for boom_time in tqdm(self.boom_times, total=len(self.boom_times)):
+            #     total_coef += np.exp((-(time - boom_time) ** 2 / (2 * self.sigma))) * self.coef
+            batch_size = self.batch_size
+            time = torch.tensor(time).reshape(1, -1).to(self.device)
+            for i in tqdm(range(0, len(self.boom_times), batch_size)):
+                bt_batch = self.boom_times[i:i + batch_size].reshape(-1, 1)
+                time_diff = time - bt_batch
+                batch_result = torch.exp(-time_diff ** 2 / (2 * self.sigma))
+                total_coef += torch.sum(batch_result, axis=0) * self.coef
+            return total_coef.detach().cpu().numpy()
 
 
 class AuthorStrategyV1():
@@ -75,7 +86,6 @@ def DatasetTimeBoomAuthorDependence(cnt, logger_name='logs/raw_logger.log', logg
                                     time_strategy=np.random.uniform, time_strategy_param=dict(low=1, high=3), time_mean=2):
     with LogsLib.LoggerCreate(logger_fake) as logger:
         logger.Write(f'Use seed {seed}')
-        np.random.seed(seed)
     
         np.random.seed(seed=seed)
         boom_strategy = boom_strategy_fabric(cnt_boom, 0, time_mean * cnt, sigma=sigma)
@@ -93,7 +103,42 @@ def DatasetTimeBoomAuthorDependence(cnt, logger_name='logs/raw_logger.log', logg
         df.loc[:, 'timestamp'] = df.loc[:, 'timestamp'].astype(float)
         return df
 
+def DatasetLimitMoneyVolume(cnt, logger_name='logs/raw_logger.log', logger_fake=None, seed=42,
+                            count_people=2, people_lambda: float | tp.Iterable[float]=1,
+                            time_strategy=np.random.uniform, time_strategy_param=dict(low=1, high=3)):
+    with LogsLib.LoggerCreate(logger_fake) as logger:
+        logger.write(f'Use seed: {seed}')
+        logger.write(f'Use DatasetLimitMoneyVolume')
+        np.random.seed(seed=seed)
 
+        df = pd.DataFrame(index=range(cnt), columns=['from', 'to', 'value', 'timestamp'])
+        df.loc[:, 'timestamp'] = np.cumsum(time_strategy(**time_strategy_param, size=cnt))
+        
+        balances = np.zeros(count_people)
+        
+        data = df.values
+        
+        second_men = np.random.randint(0, count_people - 1, cnt)
+        prev_ts = 0
+        for ind in range(cnt):
+            ts = data[ind, -1]
+            balances += np.random.poisson(people_lambda * (ts - prev_ts), count_people)
+            prev_ts = ts
+            probs = F.softmax(balances) * (balances != 0)
+            if probs.sum() == 0:
+                probs[0] += 1
+
+            probs /= probs.sum()
+            first_man = np.random.choice(range(0, count_people), probs)
+            second_man = second_men[ind]
+            
+            spent = balances[first_man] * np.random.uniform(0, 1)
+            balances[first_man] -= spent
+            balances[second_man] += spent
+            if second_man >= first_man:
+                second_man += 1
+            data[ind] = np.array([first_man, second_man, spent, ts])
+            
 
 def GetJsonByInd(ind, path='data', logger_name='logs/raw_logger.log', logger_fake=None):
     with LogsLib.LoggerCreate(logger_fake) as logger:

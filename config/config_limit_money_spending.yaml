@@ -1,0 +1,18 @@
+defaults:
+    - default
+    - _self_
+
+dataset_fabric: "DatasetLimitMoneyVolume"
+model_params:
+    emb_size: 4
+    use_compositor: true
+    time_features: 1
+
+df_config:
+    cnt: 500_000
+    count_people: 20
+    people_lambda: 3
+
+num_epochs: 200
+seconds_betwen_image_show: 100
+name: "DatasetLimitMoneyVolume 20 people, lambda = 3"

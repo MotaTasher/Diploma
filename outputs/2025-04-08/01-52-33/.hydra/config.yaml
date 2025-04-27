@@ -1,0 +1,29 @@
+name: DatasetTimeBoomAuthorDependence without booms
+df_config:
+  cnt: 500000
+  count_people: 20
+  cnt_boom: 10000
+  sigma: 10000
+dataset_fabric: DatasetTimeBoomAuthorDependence
+train_batch_size: 64
+test_batch_size: 64
+sample_len: 100
+cnt_known_address: 100
+model: BertForTransactionRegressionV1
+model_params:
+  emb_size: 16
+  num_attention_heads: 12
+  use_compositor: true
+  time_features: 7
+num_epochs: 200
+learning_rate: 0.0003
+gamma: 0.8
+step_size: 10
+time_coef_loss: 1
+cnt_last_for_show: 50
+seconds_betwen_image_show: 100
+model_predictor: time_cross_predictior
+result_loss: result_loss_slower_change
+show_img: false
+show_batch_size: 300
+cuda_id: 0
