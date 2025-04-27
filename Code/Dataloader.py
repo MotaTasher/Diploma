@@ -107,14 +107,14 @@ def DatasetLimitMoneyVolume(cnt, logger_name='logs/raw_logger.log', logger_fake=
                             count_people=2, people_lambda: float | tp.Iterable[float]=1,
                             time_strategy=np.random.uniform, time_strategy_param=dict(low=1, high=3)):
     with LogsLib.LoggerCreate(logger_fake) as logger:
-        logger.write(f'Use seed: {seed}')
-        logger.write(f'Use DatasetLimitMoneyVolume')
+        logger.Write(f'Use seed: {seed}')
+        logger.Write(f'Use DatasetLimitMoneyVolume')
         np.random.seed(seed=seed)
 
         df = pd.DataFrame(index=range(cnt), columns=['from', 'to', 'value', 'timestamp'])
         df.loc[:, 'timestamp'] = np.cumsum(time_strategy(**time_strategy_param, size=cnt))
         
-        balances = np.zeros(count_people)
+        balances = torch.zeros(count_people, requires_grad=False)
         
         data = df.values
         
@@ -124,12 +124,12 @@ def DatasetLimitMoneyVolume(cnt, logger_name='logs/raw_logger.log', logger_fake=
             ts = data[ind, -1]
             balances += np.random.poisson(people_lambda * (ts - prev_ts), count_people)
             prev_ts = ts
-            probs = F.softmax(balances) * (balances != 0)
+            probs = F.softmax(balances, dim=0).numpy() * (balances.numpy() != 0)
             if probs.sum() == 0:
                 probs[0] += 1
 
             probs /= probs.sum()
-            first_man = np.random.choice(range(0, count_people), probs)
+            first_man = np.random.choice(range(0, count_people), p= probs)
             second_man = second_men[ind]
             
             spent = balances[first_man] * np.random.uniform(0, 1)
@@ -138,6 +138,8 @@ def DatasetLimitMoneyVolume(cnt, logger_name='logs/raw_logger.log', logger_fake=
             if second_man >= first_man:
                 second_man += 1
             data[ind] = np.array([first_man, second_man, spent, ts])
+            
+    return pd.DataFrame(data, index=range(cnt), columns=['from', 'to', 'value', 'timestamp'])
             
 
 def GetJsonByInd(ind, path='data', logger_name='logs/raw_logger.log', logger_fake=None):

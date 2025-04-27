@@ -1,0 +1,36 @@
+name: DatasetLimitMoneyVolume 20 people, lambda = 3
+df_config:
+  cnt: 500000
+  count_people: 20
+  people_lambda: 3
+dataset_fabric: DatasetLimitMoneyVolume
+train_batch_size: 64
+test_batch_size: 64
+sample_len: 100
+cnt_known_address: 100
+model: BertForTransactionRegressionV1
+model_params:
+  emb_size: 16
+  num_attention_heads: 12
+  use_compositor: true
+  time_features: 7
+num_epochs: 200
+learning_rate: 0.0003
+gamma: 0.8
+step_size: 10
+time_coef_loss: 1
+cnt_last_for_show: 50
+seconds_betwen_image_show: 100
+model_predictor: time_cross_predictior
+result_loss: result_loss_slower_change
+show_img: false
+show_batch_size: 300
+warmup_epochs: 5
+p_change: 0.15
+p_msk: 0.15
+p_save: 0.15
+loggin_each: 5
+change_strategy: uniform
+loss_fn: criterion
+start_epoch: 0
+cuda_id: 2
