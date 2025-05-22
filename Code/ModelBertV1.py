@@ -12,10 +12,12 @@ from IPython.display import clear_output
 
 class BertForTransactionRegressionV1(nn.Module):
     def __init__(self, known_address_len, emb_size=64, use_compositor=False, num_attention_heads=12,
-                 time_features=1):
+                 time_features=1, bert_config={}):
         super(BertForTransactionRegressionV1, self).__init__()
 
-        config = BertConfig(num_attention_heads=num_attention_heads)
+        config = BertConfig(
+            **bert_config,
+            num_attention_heads=num_attention_heads)
         self.use_compositor = use_compositor
         
         hidden_size = (time_features + emb_size + 1) * 2

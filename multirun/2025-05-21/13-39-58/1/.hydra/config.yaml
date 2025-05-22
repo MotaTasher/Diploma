@@ -1,0 +1,45 @@
+name: model training on eth dataset v1, tensor predict
+df_config:
+  cnt: 50000
+  start_block: 20900000
+  end_block: 21000000
+  use_async: false
+dataset_fabric: GetEthereumDataset
+train_batch_size: 512
+test_batch_size: 64
+sample_len: 100
+cnt_known_address: 100
+model: BertForTransactionRegressionV1
+model_params:
+  emb_size: 2
+  num_attention_heads: 12
+  use_compositor: false
+  time_features: 69
+num_epochs: 2000
+learning_rate: 1.0e-05
+gamma: 0.6
+step_size: 5
+warmup_epochs: 1
+time_coef_loss: 1
+cnt_last_for_show: 50
+seconds_betwen_image_show: 10
+model_predictor: time_cross_predictior
+result_loss: result_loss_slower_change
+show_img: false
+show_batch_size: 100
+p_change: 0.15
+p_msk: 0.15
+p_save: 0.15
+loggin_each: 5
+change_strategy: uniform
+loss_fn: criterion
+start_epoch: 0
+use_log: true
+use_exp: false
+save_each: 50
+save_path: models
+scheduler: reduce_on_plateau
+threshold: 0.05
+emb_size: 2
+time_features: 33
+cuda_id: 5

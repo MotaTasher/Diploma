@@ -1,6 +1,10 @@
 cryo
 .cryo
 logs
+block_cache
+data
+outputs
+models
+wandb
 *.log
 __pycache__
-

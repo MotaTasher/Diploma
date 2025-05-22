@@ -12,10 +12,11 @@ test_batch_size: 64
 sample_len: 100
 
 cnt_known_address: 100
+
 model: "BertForTransactionRegressionV1"
 model_params:
     # (emb_size * 2 + 4) % num_attention_heads == 0
-    emb_size: 4 
+    emb_size: 4
     num_attention_heads: 12
     use_compositor: False
     time_features: 2
@@ -25,6 +26,8 @@ learning_rate: 3e-4
 
 gamma: 0.8
 step_size: 10
+warmup_epochs: 5
+
 time_coef_loss: 1
 cnt_last_for_show: 50
 seconds_betwen_image_show: 10
@@ -35,7 +38,6 @@ show_img: False
 
 show_batch_size: 300
 
-warmup_epochs: 5
 p_change: 0.15
 p_msk: 0.15
 p_save: 0.15
@@ -44,3 +46,11 @@ change_strategy: uniform
 loss_fn: criterion
 
 start_epoch: 0
+
+use_log: False
+use_exp: False
+
+save_each: 50
+save_path: models
+
+scheduler: lambda

@@ -1,0 +1,32 @@
+defaults:
+    - default
+    - _self_
+
+
+dataset_fabric: "GetEthereumDataset"
+
+
+name: "model training on eth dataset v1"
+df_config:
+    start_block: 20_900_000
+    end_block: 21_000_000
+    # end_block: 21_000_000
+    address_limit: 10_000
+
+
+model: "BertForTransactionRegressionV1"
+
+model_params:
+    # (emb_size + time_features + 1) * 2 % num_attention_heads == 0
+    emb_size: 128
+    num_attention_heads: 12
+    use_compositor: False # True
+    time_features: 39
+
+learning_rate: 3e-5
+
+gamma: 0.3
+step_size: 10
+warmup_epochs: 10
+
+num_epochs: 10_000

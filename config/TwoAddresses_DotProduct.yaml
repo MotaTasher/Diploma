@@ -1,0 +1,29 @@
+defaults:
+    - default
+    - _self_
+
+
+name: "dataset: TwoAddresses, model: DotProduct"
+
+df_config:
+    cnt: 50_000
+
+
+
+
+dataset_fabric: "SimpleDataloader"
+
+model: "BertForTransactionRegressionV1"
+
+model_params:
+    # (emb_size + time_features + 1) * 2 % num_attention_heads == 0
+    emb_size: 8
+    num_attention_heads: 12
+    use_compositor: False # True
+    time_features: 3
+
+num_epochs: 100
+learning_rate: 0.1
+
+model_predictor: "time_cross_predictior" # time_cross_predictior 
+result_loss: "result_loss_slower_change" # result_loss_slower_change, result_loss_empty

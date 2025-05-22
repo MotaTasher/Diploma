@@ -16,3 +16,5 @@ df_config:
 num_epochs: 200
 seconds_betwen_image_show: 100
 name: "DatasetLimitMoneyVolume 20 people, lambda = 3"
+
+cnt_known_address: 100

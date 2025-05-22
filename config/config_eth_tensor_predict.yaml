@@ -1,0 +1,45 @@
+defaults:
+    - default
+    - _self_
+
+
+dataset_fabric: "GetEthereumDataset"
+
+name: "model training on eth dataset v1, tensor predict"
+df_config:
+    start_block: 20_900_000
+    end_block: 21_500_000
+    # end_block: 20_930_000
+    # address_limit: 10_000
+    use_async: False
+
+model: "BertForTransactionRegressionV1"
+
+show_batch_size: 100
+
+model_params:
+    # (emb_size + time_features + 1) * 2 % num_attention_heads == 0
+    emb_size: 2
+    num_attention_heads: 12
+    # use_compositor: True
+    use_compositor: False
+    time_features: 69
+
+learning_rate: 1e-5
+
+gamma: 0.6
+step_size: 5
+warmup_epochs: 1
+threshold: 0.05
+
+num_epochs: 2_000
+
+model_predictor: "time_cross_predictior" # time_cross_predictior 
+result_loss: "result_loss_slower_change" # result_loss_slower_change, result_loss_empty
+
+use_log: True
+
+train_batch_size: 512
+test_batch_size: 64
+
+scheduler: reduce_on_plateau
