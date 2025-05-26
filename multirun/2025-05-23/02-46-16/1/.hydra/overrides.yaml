@@ -1,0 +1,4 @@
+- +cuda_id=1
+- df_config.end_block=21000000
+- train_batch_size=64
+- model_params.time_features=45

@@ -1,0 +1,5 @@
+- +cuda_id=6
+- df_config.end_block=21000000
+- train_batch_size=64
+- num_epochs=2000
+- model_params.time_features=45

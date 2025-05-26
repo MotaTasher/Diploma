@@ -23,6 +23,7 @@ class BertForTransactionRegressionV1(nn.Module):
         hidden_size = (time_features + emb_size + 1) * 2
         config.hidden_size = hidden_size
         self.bert = BertModel(config)
+        print(f"Params in model: {sum(p.numel() for p in self.bert.parameters())}")
         self.address_embedding = nn.Embedding(num_embeddings=known_address_len + 1, embedding_dim=emb_size)
 
         cls_emb = torch.randn((hidden_size))

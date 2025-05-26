@@ -8,7 +8,7 @@ dataset_fabric: "GetEthereumDataset"
 name: "model training on eth dataset v1, tensor predict"
 df_config:
     start_block: 20_900_000
-    end_block: 21_500_000
+    end_block: 21_000_000
     # end_block: 20_930_000
     # address_limit: 10_000
     use_async: False

@@ -3,7 +3,7 @@ defaults:
 
 name: "model training"
 df_config:
-    cnt: 50_000
+    cnt: 1_000_000
 
 dataset_fabric: "SimpleDataloader"
 
@@ -54,3 +54,5 @@ save_each: 50
 save_path: models
 
 scheduler: lambda
+
+threshold: -1

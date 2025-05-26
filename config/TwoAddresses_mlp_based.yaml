@@ -6,7 +6,7 @@ defaults:
 name: "dataset: TwoAddresses, model: mlp"
 
 df_config:
-    cnt: 50_000
+    cnt: 500_000
 
 
 

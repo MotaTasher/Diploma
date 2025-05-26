@@ -1,0 +1,3 @@
+- +emb_size=50
+- +time_features=57
+- +cuda_id=5

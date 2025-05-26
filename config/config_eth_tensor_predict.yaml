@@ -20,7 +20,7 @@ show_batch_size: 100
 model_params:
     # (emb_size + time_features + 1) * 2 % num_attention_heads == 0
     emb_size: 2
-    num_attention_heads: 12
+    num_attention_heads: 2
     # use_compositor: True
     use_compositor: False
     time_features: 69
@@ -28,7 +28,6 @@ model_params:
         vocab_size: 30522
         hidden_size: 768
         num_hidden_layers: 12
-        num_attention_heads: 12
         intermediate_size: 3072
         hidden_act: "gelu"
         hidden_dropout_prob: 0.1
@@ -40,6 +39,7 @@ model_params:
         pad_token_id: 0
         position_embedding_type: "absolute"
         use_cache: True
+        
 
 learning_rate: 1e-5
 

@@ -10,7 +10,7 @@ from functools import partial
 import numba
 import torch
 import torch.nn.functional as F
-
+import pyarrow.lib
 
 import os
 import json
@@ -82,7 +82,8 @@ class AuthorStrategyV1():
 
 def SimpleDataloader(cnt, logger_name='logs/raw_logger.log', logger_fake=None, seed=42, count_people=2,
                      volume_strategy=np.random.randint, volume_strategy_param=dict(low=0, high=2),
-                     time_strategy=np.random.uniform, time_strategy_param=dict(low=1, high=3)):
+                     time_strategy=np.random.uniform, time_strategy_param=dict(low=1, high=3),
+                     address_limit=None):
     with LogsLib.LoggerCreate(logger_fake) as logger:
         logger.Write(f'Use seed {seed}')
         np.random.seed(seed)
@@ -98,7 +99,8 @@ def SimpleDataloader(cnt, logger_name='logs/raw_logger.log', logger_fake=None, s
 def DatasetTimeBoomAuthorDependence(cnt, logger_name='logs/raw_logger.log', logger_fake=None, seed=42,
                                     count_people=2, boom_strategy_fabric=TimeBoomStrategyV1, cnt_boom=10, sigma=1,
                                     author_strategy_fabric=AuthorStrategyV1,
-                                    time_strategy=np.random.uniform, time_strategy_param=dict(low=1, high=3), time_mean=2):
+                                    time_strategy=np.random.uniform, time_strategy_param=dict(low=1, high=3), time_mean=2,
+                                    address_limit=None):
     with LogsLib.LoggerCreate(logger_fake) as logger:
         logger.Write(f'Use seed {seed}')
     
@@ -120,7 +122,8 @@ def DatasetTimeBoomAuthorDependence(cnt, logger_name='logs/raw_logger.log', logg
 
 def DatasetLimitMoneyVolume(cnt, logger_name='logs/raw_logger.log', logger_fake=None, seed=42,
                             count_people=2, people_lambda: float | tp.Iterable[float]=1,
-                            time_strategy=np.random.uniform, time_strategy_param=dict(low=1, high=3)):
+                            time_strategy=np.random.uniform, time_strategy_param=dict(low=1, high=3),
+                            address_limit=None):
     with LogsLib.LoggerCreate(logger_fake) as logger:
         logger.Write(f'Use seed: {seed}')
         logger.Write(f'Use DatasetLimitMoneyVolume')
@@ -242,6 +245,10 @@ class SyncBatchEthFetcher:
         self.logger_name = logger_name
         self.logger_fake = logger_fake
         self.cache_dir = cache_dir
+        self.total_df_folder = os.path.join(self.cache_dir, 'total_df')
+        if not os.path.exists(self.total_df_folder):
+            os.makedirs(self.total_df_folder, exist_ok=True)
+
         os.makedirs(cache_dir, exist_ok=True)
 
     def _batch_cache_path(self, batch_start: int, batch_end: int) -> str:
@@ -398,15 +405,23 @@ class SyncBatchEthFetcher:
                     "timestamp": ts
                 })
         return pd.DataFrame.from_records(records, columns=["from", "to", "value", "timestamp"])
-
-    # def get_transactions(self, start_block: int, end_block: int) -> pd.DataFrame:
-    #     block_list = list(range(start_block, end_block))
-    #     blocks_json = self.fetch_blocks(block_list)
-    #     df = self.blocks_json_to_df(blocks_json)
-    #     df.timestamp = pd.to_datetime(df.timestamp * 1e9)
-    #     return df.sort_values("timestamp").reset_index(drop=True)
     
-    def get_transactions(self, start_block: int, end_block: int, use_async=False) -> pd.DataFrame:
+    
+    def get_transactions(self, start_block: int, end_block: int, use_async=False, save_df=True, use_cache=True) -> pd.DataFrame:
+        dataset_cache_path = os.path.join(self.total_df_folder, f"dataset_{start_block}_{end_block}.feather")
+
+        if use_cache and os.path.exists(dataset_cache_path):
+            try:
+
+                df = pd.read_feather(dataset_cache_path)
+                df["from"] = df["from"].apply(lambda x: int(x, 16))
+                df["to"] = df["to"].apply(lambda x: int(x, 16) if pd.notnull(x) else None)
+                df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
+                return df
+            except pyarrow.lib.ArrowInvalid as e:
+                print(f"[WARNING] Failed to read cached dataset: {e}. Recomputing...")
+                os.remove(dataset_cache_path)
+
         block_list = list(range(start_block, end_block))
         if use_async:
             blocks_json = asyncio.run(self.fetch_blocks_async(block_list))
@@ -414,8 +429,16 @@ class SyncBatchEthFetcher:
             blocks_json = self.fetch_blocks(block_list)
 
         df = self.blocks_json_to_df(blocks_json)
-        df.timestamp = pd.to_datetime(df.timestamp * 1e9)
+        df.timestamp = pd.to_datetime(df.timestamp, unit="s")
+
+        if save_df:
+            df_copy = df.copy()
+            df_copy["from"] = df_copy["from"].apply(lambda x: hex(x))
+            df_copy["to"] = df_copy["to"].apply(lambda x: hex(x) if pd.notnull(x) else None)
+            df_copy.reset_index(drop=True).to_feather(dataset_cache_path)
         return df.sort_values("timestamp").reset_index(drop=True)
+
+        
 
 
 def GetEthereumDataset(
@@ -459,5 +482,5 @@ def GetEthereumDataset(
     df["timestamp"] = (df["timestamp"] - pd.Timestamp(0)).dt.total_seconds().astype(float)
 
     df = df.astype({"from": int, "to": int, "value": float, "timestamp": float})
-    df = df.sort_values("timestamp").reset_index(drop=True)
     return df
+    df = df.sort_values("timestamp").reset_index(drop=True)

@@ -408,19 +408,20 @@ class Trainer:
             msk_ind, change_ind, save_ind, model_input = self.process_batch(show_batch)
             res, volumes_pred = self.forward_and_predict(model_input)
 
-            targets = show_batch['numeric_features'][..., -1].detach().cpu().reshape(-1)
+            targets = show_batch['value'][..., -1].detach().cpu().reshape(-1)
             preds = volumes_pred.reshape(-1).detach().cpu()
 
             if self.config['use_log']:
                 preds = torch.exp(preds)
+                exp_targets = torch.exp(targets)
 
             indexes = show_batch['time_features'][..., -1].detach().cpu().reshape(-1)
             idx_sorted = sorted(range(len(indexes)), key=lambda x: indexes[x])[:self.config['show_batch_size']]
 
-            fig.add_trace(go.Scatter(x=np.arange(len(idx_sorted)), y=targets[idx_sorted], name="Targets", line_shape="hv"), row=5, col=1)
+            fig.add_trace(go.Scatter(x=np.arange(len(idx_sorted)), y=exp_targets[idx_sorted], name="Targets", line_shape="hv"), row=5, col=1)
             fig.add_trace(go.Scatter(x=np.arange(len(idx_sorted)), y=preds[idx_sorted], name="Predicts", line_shape="hv"), row=5, col=1)
 
-            figs[graphs_names[4]].add_trace(go.Scatter(y=targets[idx_sorted], name="Targets", line_shape='hv'))
+            figs[graphs_names[4]].add_trace(go.Scatter(y=exp_targets[idx_sorted], name="Targets", line_shape='hv'))
             figs[graphs_names[4]].add_trace(go.Scatter(y=preds[idx_sorted], name="Predicts", line_shape='hv'))
 
         fig.update_layout(width=1000, height=1500)
@@ -433,7 +434,9 @@ class Trainer:
 
 
     def train(self):
+        bert = self.model.bert
         for epoch in range(self.config['start_epoch'], self.config['num_epochs']):
+            self.run.log({'model_size': sum(p.numel() for p in bert.parameters())})
             np.random.seed(None)
             train_loss, train_time = self.train_epoch(epoch)
             np.random.seed(42)

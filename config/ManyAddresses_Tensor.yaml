@@ -6,8 +6,8 @@ defaults:
 name: "dataset: ManyAddresses, model: Tensor"
 
 df_config:
-    cnt: 50_000
-    count_people: 20
+    cnt: 500_000
+    count_people: 1000
     cnt_boom: 0
     sigma: 0
 
@@ -15,15 +15,17 @@ dataset_fabric: "DatasetTimeBoomAuthorDependence"
 
 model: "BertForTransactionRegressionV1"
 
+cnt_known_address: 50
+
 model_params:
     # (emb_size + time_features + 1) * 2 % num_attention_heads == 0
-    emb_size: 8
+    emb_size: 5
     num_attention_heads: 12
     use_compositor: False # False
-    time_features: 3
+    time_features: 30
 
 
-num_epochs: 100
+num_epochs: 500
 learning_rate: 0.1
 
 model_predictor: "time_cross_predictior" # time_cross_predictior
